@@ -1,6 +1,7 @@
 package com.the.udemy.exercise.first;
 
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * Create a pub-sub (1 vs 1) lib using wait and notify
@@ -12,12 +13,12 @@ public class Main {
         SubscriberChannel subscriberChannel = channel;
         PublisherChannel publisherChannel = channel;
 
-        List<String> messages = List.of("Hello", "This", "Is", "The", "Phan");
-        Thread pubThread = new Thread(new Publisher(publisherChannel, messages));
-        Thread subThread = new Thread(new Subscriber(subscriberChannel, messages));
+        List<String> messages = List.of("Hello", "This", "Is", "The", "Phan", "end");
+        Thread pubThread = new Thread(new Publisher(publisherChannel, messages), "pub thread");
+        Thread subThread = new Thread(new Subscriber(subscriberChannel, messages), "sub thread");
 
-        pubThread.start();
         subThread.start();
+        pubThread.start();
     }
 
 }
@@ -33,8 +34,13 @@ class Publisher implements Runnable {
 
     @Override
     public void run() {
+        Consumer<String> business =  message -> {
+            System.out.println("PUBLISHER -- ");
+            System.out.println("Published message: " + message);
+            System.out.println();
+        };
         for (String msg : messages) {
-            channel.publish(msg);
+            channel.publish(msg, business);
         }
     }
 }
@@ -50,54 +56,54 @@ class Subscriber implements Runnable {
 
     @Override
     public void run() {
+        Consumer<String> subscribeBusiness = message -> {
+            System.out.println("SUBSCRIBER -- ");
+            System.out.println("Subscribed message: " + message);
+            System.out.println();
+        };
         for (String msg : messages) {
-            channel.subscribe(msg);
+            channel.subscribe(msg, subscribeBusiness);
         }
+        Thread.currentThread().interrupt();
     }
 }
 
 interface SubscriberChannel {
-    void subscribe(String message);
+    void subscribe(String message, Consumer<String> subscribeBusiness);
 }
 
 interface PublisherChannel {
-    void publish(String message);
+    void publish(String message, Consumer<String> publishBusiness);
 }
 
 class Channel implements SubscriberChannel, PublisherChannel {
     public static final long WAITING_TIME = 500L;
     private boolean isSent;
 
-    public synchronized void publish(String message) {
-
+    public synchronized void publish(String message, Consumer<String> publishBusiness) {
         try {
             while (isSent) {
                 this.wait();
             }
             Thread.sleep(300l);
-            System.out.println("PUBLISHER -- ");
-            System.out.println("Published message: " + message);
-            System.out.println();
+            publishBusiness.accept(message);
             isSent = true;
-            this.notify();
+            this.notifyAll();
         } catch (InterruptedException exception) {
             exception.printStackTrace();
         }
 
     }
 
-    public synchronized void subscribe(String message) {
+    public synchronized void subscribe(String message, Consumer<String> subscribeBusiness) {
         try {
             while (!isSent) {
-                this.wait();
+                this.wait(1000l);
             }
-
             Thread.sleep(WAITING_TIME);
-            System.out.println("SUBSCRIBER -- ");
-            System.out.println("Subscribed message: " + message);
-            System.out.println();
+            subscribeBusiness.accept(message);
             isSent = false;
-            this.notify();
+            this.notifyAll();
         } catch (InterruptedException exception) {
             exception.printStackTrace();
         }
