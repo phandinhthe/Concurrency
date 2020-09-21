@@ -14,11 +14,12 @@ public class Main {
         PublisherChannel publisherChannel = channel;
 
         List<String> messages = List.of("Hello", "This", "Is", "The", "Phan", "end");
-        Thread pubThread = new Thread(new Publisher(publisherChannel, messages), "pub thread");
-        Thread subThread = new Thread(new Subscriber(subscriberChannel, messages), "sub thread");
 
-        subThread.start();
-        pubThread.start();
+        Thread publisher = new Thread(new Publisher(publisherChannel, messages));
+        Thread subscriber = new Thread(new Subscriber(subscriberChannel, messages));
+
+        publisher.start();
+        subscriber.start();
     }
 
 }
@@ -34,7 +35,7 @@ class Publisher implements Runnable {
 
     @Override
     public void run() {
-        Consumer<String> business =  message -> {
+        Consumer<String> business = message -> {
             System.out.println("PUBLISHER -- ");
             System.out.println("Published message: " + message);
             System.out.println();
@@ -64,7 +65,6 @@ class Subscriber implements Runnable {
         for (String msg : messages) {
             channel.subscribe(msg, subscribeBusiness);
         }
-        Thread.currentThread().interrupt();
     }
 }
 
@@ -84,6 +84,7 @@ class Channel implements SubscriberChannel, PublisherChannel {
         try {
             while (isSent) {
                 this.wait();
+                System.out.println("Publishing...");
             }
             Thread.sleep(300l);
             publishBusiness.accept(message);
@@ -99,6 +100,7 @@ class Channel implements SubscriberChannel, PublisherChannel {
         try {
             while (!isSent) {
                 this.wait(1000l);
+                System.out.println("Subscribing...");
             }
             Thread.sleep(WAITING_TIME);
             subscribeBusiness.accept(message);
